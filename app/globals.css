@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
+
+  --color-gold: #C5A059;
+  --color-gold-dim: #8B6914;
+  --color-gold-muted: rgba(197, 160, 89, 0.15);
+  --color-gold-border: rgba(197, 160, 89, 0.4);
+  --color-navy: #1A2C41;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  background: #fff;
+  color: #1A2C41;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C5A059;
+}
+
+/* Smooth scrolling in chat */
+.chat-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Gold glow on active elements */
+.gold-glow {
+  box-shadow: 0 0 0 1px rgba(197, 160, 89, 0.3), 0 0 20px rgba(197, 160, 89, 0.08);
+}
+
+/* Prevent body scroll when sidebar modal is open on mobile */
+.sidebar-open {
+  overflow: hidden;
+}
