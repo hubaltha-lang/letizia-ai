@@ -15,7 +15,7 @@ export async function signUp(formData: FormData) {
     password,
     options: {
       data: { display_name: displayName },
-      emailRedirectTo: undefined, // disable confirmation email
+      emailRedirectTo: undefined,
     },
   })
 
@@ -23,7 +23,7 @@ export async function signUp(formData: FormData) {
     return { error: error.message }
   }
 
-  redirect('/dashboard')
+  return { success: true }
 }
 
 export async function signIn(formData: FormData) {

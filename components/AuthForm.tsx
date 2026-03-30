@@ -2,19 +2,50 @@
 
 import { useState, useTransition } from 'react'
 import { signIn, signUp } from '@/app/actions/auth'
+import { useRouter } from 'next/navigation'
 
 export default function AuthForm() {
   const [tab, setTab] = useState<'signin' | 'signup'>('signin')
   const [error, setError] = useState<string | null>(null)
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   async function handleSubmit(formData: FormData) {
     setError(null)
     startTransition(async () => {
       const action = tab === 'signin' ? signIn : signUp
       const result = await action(formData)
-      if (result?.error) setError(result.error)
+      if (result?.error) {
+        setError(result.error)
+      } else if (result?.success) {
+        setShowConfirmation(true)
+      }
     })
+  }
+
+  if (showConfirmation) {
+    return (
+      <div className="text-center py-4">
+        <div className="w-14 h-14 rounded-full bg-[#C5A059]/15 flex items-center justify-center mx-auto mb-4">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C5A059" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+        </div>
+        <h3 className="text-[#1A2C41] font-semibold text-lg mb-2">Check your email</h3>
+        <p className="text-[#1A2C41]/50 text-sm leading-relaxed">
+          We&apos;ve sent a confirmation email to your inbox.<br />
+          Click the link inside to activate your account.
+        </p>
+        <button
+          onClick={() => { setShowConfirmation(false); setTab('signin') }}
+          className="mt-6 text-[#C5A059] text-sm hover:text-[#d4af6a] transition-colors"
+        >
+          Back to Sign In
+        </button>
+      </div>
+    )
   }
 
   return (
