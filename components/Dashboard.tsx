@@ -6,29 +6,45 @@ import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
 import Sidebar from './Sidebar'
 import ChatArea from './ChatArea'
+import HotelScraper from './HotelScraper'
 import OnboardingModal from './OnboardingModal'
+import SettingsModal from './SettingsModal'
+import TrialExpiredModal from './TrialExpiredModal'
 import type { ChatSession, Message } from '@/lib/types'
 import type { ModuleId } from '@/lib/modules'
 import type { UserProfile } from '@/lib/profile'
+import type { ActiveView } from '@/lib/store'
 
 interface Props {
   userId: string
   displayName: string
   initialProfile: UserProfile
+  accessBlocked: boolean
 }
 
-function isProfileEmpty(profile: UserProfile) {
-  return !profile.persona.trim() && !profile.mission.trim() && !profile.services.trim()
+function isProfileIncomplete(profile: UserProfile): boolean {
+  return (
+    !profile.full_name?.trim() ||
+    !profile.age ||
+    !profile.location?.trim() ||
+    !profile.modalities?.trim() ||
+    !profile.practice_status ||
+    !profile.persona?.trim() ||
+    !profile.mission?.trim() ||
+    !profile.services?.trim()
+  )
 }
 
-export default function Dashboard({ userId, displayName, initialProfile }: Props) {
+export default function Dashboard({ userId, displayName, initialProfile, accessBlocked }: Props) {
   const {
     activeModuleId,
     activeChatId,
+    activeView,
     sidebarOpen,
     isStreaming,
     setActiveModule,
     setActiveChatId,
+    setActiveView,
     setSidebarOpen,
     setIsStreaming,
   } = useAppStore()
@@ -38,17 +54,21 @@ export default function Dashboard({ userId, displayName, initialProfile }: Props
   const [streamingContent, setStreamingContent] = useState('')
   const [profile, setProfile] = useState<UserProfile>(initialProfile)
 
-  // Show onboarding modal for new users who haven't completed it
+  // Onboarding modal: auto-show for first-time users (never dismissed before).
+  // The "Finish onboarding" banner reopens it for returning users with gaps.
   const [showOnboarding, setShowOnboarding] = useState(false)
   useEffect(() => {
-    let done = false
+    let dismissed = false
     try {
-      done = localStorage.getItem(`onboarding_done_${userId}`) === '1'
+      dismissed = localStorage.getItem(`onboarding_done_${userId}`) === '1'
     } catch {}
-    if (!done && isProfileEmpty(initialProfile)) {
+    if (!dismissed && isProfileIncomplete(initialProfile)) {
       setShowOnboarding(true)
     }
   }, [userId, initialProfile])
+
+  const profileIncomplete = isProfileIncomplete(profile)
+  const [showSettings, setShowSettings] = useState(false)
 
   const supabase = createClient()
 
@@ -85,8 +105,9 @@ export default function Dashboard({ userId, displayName, initialProfile }: Props
   const handleSelectModule = useCallback((id: ModuleId) => {
     setActiveModule(id)
     setActiveChatId(null)
+    setActiveView('chat')
     setMessages([])
-  }, [setActiveModule, setActiveChatId])
+  }, [setActiveModule, setActiveChatId, setActiveView])
 
   const handleSelectChat = useCallback((session: ChatSession) => {
     setActiveModule(session.module_id as ModuleId)
@@ -121,11 +142,22 @@ export default function Dashboard({ userId, displayName, initialProfile }: Props
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
-      {showOnboarding && (
+      {accessBlocked && <TrialExpiredModal />}
+      {showOnboarding && !accessBlocked && (
         <OnboardingModal
           userId={userId}
           displayName={displayName}
+          initial={profile}
           onComplete={handleOnboardingComplete}
+          onClose={() => setShowOnboarding(false)}
+        />
+      )}
+      {showSettings && (
+        <SettingsModal
+          userId={userId}
+          profile={profile}
+          onProfileChange={setProfile}
+          onClose={() => setShowSettings(false)}
         />
       )}
       {/* Mobile overlay */}
@@ -143,22 +175,32 @@ export default function Dashboard({ userId, displayName, initialProfile }: Props
         }`}
       >
         <Sidebar
-          userId={userId}
           displayName={displayName}
           activeModuleId={activeModuleId}
           activeChatId={activeChatId}
           sessions={sessions}
-          profile={profile}
           onSelectModule={handleSelectModule}
           onSelectChat={handleSelectChat}
           onNewChat={handleNewChat}
+          activeView={activeView}
           onClose={() => setSidebarOpen(false)}
-          onProfileChange={setProfile}
+          onOpenSettings={() => setShowSettings(true)}
         />
       </div>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Incomplete-profile banner */}
+        {profileIncomplete && !showOnboarding && (
+          <button
+            onClick={() => setShowOnboarding(true)}
+            className="flex items-center justify-center gap-2 w-full bg-[#C5A059] hover:bg-[#d4af6a] text-[#1A2C41] font-semibold text-xs px-4 py-2.5 transition-colors cursor-pointer"
+          >
+            <span className="font-bold">Important!</span>
+            <span>Finish the onboarding to help you better →</span>
+          </button>
+        )}
+
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white">
           <button
@@ -175,19 +217,23 @@ export default function Dashboard({ userId, displayName, initialProfile }: Props
           </span>
         </div>
 
-        <ChatArea
-          userId={userId}
-          activeModuleId={activeModuleId}
-          activeSession={activeSession}
-          messages={messages}
-          isStreaming={isStreaming}
-          streamingContent={streamingContent}
-          profile={profile}
-          onMessagesUpdate={setMessages}
-          onSessionCreated={handleSessionCreated}
-          onSessionUpdated={handleSessionUpdated}
-          onStreamingChange={handleStreamingChange}
-        />
+        {activeView === 'hotel-scraper' ? (
+          <HotelScraper userId={userId} />
+        ) : (
+          <ChatArea
+            userId={userId}
+            activeModuleId={activeModuleId}
+            activeSession={activeSession}
+            messages={messages}
+            isStreaming={isStreaming}
+            streamingContent={streamingContent}
+            profile={profile}
+            onMessagesUpdate={setMessages}
+            onSessionCreated={handleSessionCreated}
+            onSessionUpdated={handleSessionUpdated}
+            onStreamingChange={handleStreamingChange}
+          />
+        )}
       </div>
     </div>
   )

@@ -50,6 +50,11 @@ export default function ChatArea({
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return
     setInput('')
+    // Keep focus in the input so the user can immediately type the next message
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+      inputRef.current.focus()
+    }
 
     const supabase = createClient()
     let sessionId = activeSession?.id ?? null
@@ -206,8 +211,7 @@ export default function ChatArea({
               onKeyDown={handleKeyDown}
               placeholder="Ask Letizia..."
               rows={1}
-              disabled={isStreaming}
-              className="w-full bg-transparent text-[#1A2C41] text-sm placeholder:text-[#1A2C41]/30 resize-none focus:outline-none disabled:opacity-50 max-h-32 overflow-y-auto"
+              className="w-full bg-transparent text-[#1A2C41] text-sm placeholder:text-[#1A2C41]/30 resize-none focus:outline-none max-h-32 overflow-y-auto"
               style={{ lineHeight: '1.5' }}
               onInput={(e) => {
                 const el = e.currentTarget
@@ -226,6 +230,9 @@ export default function ChatArea({
         </div>
         <p className="text-center text-[#1A2C41]/20 text-xs mt-2">
           Shift+Enter for new line · Enter to send
+        </p>
+        <p className="text-center text-[#1A2C41]/25 text-[10px] mt-1.5 leading-relaxed">
+          Letizia AI can make mistakes. For informational purposes only — consult with our team for personalised advice.
         </p>
       </div>
     </div>
