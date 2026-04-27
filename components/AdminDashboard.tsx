@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Users, Mail, CheckCircle, Clock, X } from 'lucide-react'
 import type { AdminUser, Invite, PlanType } from '@/lib/admin'
 import { PLAN_LABELS } from '@/lib/admin'
+import AdminChats from './AdminChats'
+import AdminUsage from './AdminUsage'
 
 interface Props {
   initialUsers: AdminUser[]
@@ -11,7 +13,7 @@ interface Props {
 }
 
 export default function AdminDashboard({ initialUsers, initialInvites }: Props) {
-  const [tab, setTab] = useState<'users' | 'invites'>('users')
+  const [tab, setTab] = useState<'users' | 'invites' | 'chats' | 'usage'>('users')
   const [users, setUsers] = useState<AdminUser[]>(initialUsers)
   const [invites, setInvites] = useState<Invite[]>(initialInvites)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
@@ -148,7 +150,12 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-white/10">
-          {(['users', 'invites'] as const).map((t) => (
+          {([
+            ['users', 'Users'],
+            ['invites', 'Invites'],
+            ['chats', 'Chats'],
+            ['usage', 'Usage'],
+          ] as const).map(([t, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -158,7 +165,7 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
                   : 'text-white/40 hover:text-white/60'
               }`}
             >
-              {t === 'users' ? 'Users' : 'Invites'}
+              {label}
             </button>
           ))}
         </div>
@@ -315,6 +322,9 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
             )}
           </div>
         )}
+        {tab === 'chats' && <AdminChats users={users} />}
+
+        {tab === 'usage' && <AdminUsage users={users} />}
       </div>
 
       {/* Plan edit modal */}
