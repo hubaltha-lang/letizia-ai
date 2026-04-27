@@ -31,7 +31,7 @@ export default async function AdminPage() {
 
   const { data: invites } = await admin
     .from('invites')
-    .select('id, email, invited_at, accepted_at, user_id')
+    .select('id, email, invited_at, accepted_at, user_id, plan_type, plan_start_at, plan_end_at')
     .order('invited_at', { ascending: false })
 
   return (

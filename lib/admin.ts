@@ -42,4 +42,7 @@ export interface Invite {
   invited_at: string
   accepted_at: string | null
   user_id: string | null
+  plan_type: PlanType
+  plan_start_at: string | null
+  plan_end_at: string | null
 }

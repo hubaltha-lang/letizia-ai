@@ -11,13 +11,27 @@ interface Props {
 }
 
 export default function AdminDashboard({ initialUsers, initialInvites }: Props) {
+  const [tab, setTab] = useState<'users' | 'invites'>('users')
   const [users, setUsers] = useState<AdminUser[]>(initialUsers)
   const [invites, setInvites] = useState<Invite[]>(initialInvites)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
+
+  // Trial invite state
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [inviteError, setInviteError] = useState('')
   const [resendingEmail, setResendingEmail] = useState<string | null>(null)
+
+  // Paid invite state
+  const [paidEmail, setPaidEmail] = useState('')
+  const [paidPlanType, setPaidPlanType] = useState<'paid_monthly' | 'paid_6month'>('paid_monthly')
+  const [paidEndAt, setPaidEndAt] = useState(() => {
+    const d = new Date()
+    d.setMonth(d.getMonth() + 1)
+    return d.toISOString().slice(0, 10)
+  })
+  const [paidStatus, setPaidStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [paidError, setPaidError] = useState('')
 
   const trialUsers = users.filter((u) => u.plan_type === 'trial').length
   const paidUsers = users.filter((u) => u.plan_type === 'paid_monthly' || u.plan_type === 'paid_6month').length
@@ -59,6 +73,34 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
       return [json.invite, ...prev]
     })
     setTimeout(() => setInviteStatus('idle'), 3000)
+  }
+
+  async function handleSendPaidInvite() {
+    if (!paidEmail.trim()) return
+    setPaidStatus('sending')
+    setPaidError('')
+
+    const res = await fetch('/api/admin/invite-paid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: paidEmail.trim(), planType: paidPlanType, planEndAt: paidEndAt }),
+    })
+    const json = await res.json()
+
+    if (!res.ok) {
+      setPaidStatus('error')
+      setPaidError(json.error ?? 'Failed to send invite')
+      return
+    }
+
+    setPaidStatus('sent')
+    setPaidEmail('')
+    setInvites((prev) => {
+      const exists = prev.find((i) => i.email === json.invite.email)
+      if (exists) return prev.map((i) => (i.email === json.invite.email ? json.invite : i))
+      return [json.invite, ...prev]
+    })
+    setTimeout(() => setPaidStatus('idle'), 3000)
   }
 
   function handlePlanSaved(updated: AdminUser) {
@@ -104,98 +146,175 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
           ))}
         </div>
 
-        {/* Users table */}
-        <section>
-          <h2 className="text-white/60 text-xs uppercase tracking-widest mb-3">Users</h2>
-          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/10">
-                  {['User', 'Joined', 'Plan', 'Trial', 'Paid plan', ''].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-white/35 text-xs font-medium uppercase tracking-wider">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <UserRow key={user.id} user={user} onEdit={() => setEditingUser(user)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-white/10">
+          {(['users', 'invites'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 text-xs uppercase tracking-widest transition-colors ${
+                tab === t
+                  ? 'text-[#C5A059] border-b border-[#C5A059] -mb-px'
+                  : 'text-white/40 hover:text-white/60'
+              }`}
+            >
+              {t === 'users' ? 'Users' : 'Invites'}
+            </button>
+          ))}
+        </div>
 
-        {/* Invite section */}
-        <section>
-          <h2 className="text-white/60 text-xs uppercase tracking-widest mb-3">Invite to 7-day trial</h2>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-5">
-            <div className="flex gap-3">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendInvite()}
-                placeholder="email@example.com"
-                className={`flex-1 ${inputCls}`}
-              />
-              <button
-                onClick={handleSendInvite}
-                disabled={inviteStatus === 'sending' || !inviteEmail.trim()}
-                className="bg-[#C5A059] hover:bg-[#d4af6a] disabled:opacity-40 text-[#1A2C41] font-semibold text-sm px-5 py-2 rounded-lg transition-colors"
-              >
-                {inviteStatus === 'sending' ? 'Sending…' : inviteStatus === 'sent' ? 'Sent ✓' : 'Send invite'}
-              </button>
-            </div>
-
-            {inviteStatus === 'error' && (
-              <p className="text-red-400 text-xs">{inviteError}</p>
-            )}
-
-            {invites.length > 0 && (
+        {tab === 'users' && (
+          <section>
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
-                    {['Email', 'Invited', 'Status', ''].map((h) => (
-                      <th key={h} className="text-left pb-2 text-white/30 text-xs font-medium uppercase tracking-wider">
+                    {['User', 'Joined', 'Plan', 'Trial', 'Paid plan', ''].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-white/35 text-xs font-medium uppercase tracking-wider">
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {invites.map((inv) => (
-                    <tr key={inv.id} className="border-b border-white/5 last:border-0">
-                      <td className="py-2.5 text-white/70">{inv.email}</td>
-                      <td className="py-2.5 text-white/40 text-xs">{formatDate(inv.invited_at)}</td>
-                      <td className="py-2.5">
-                        {inv.accepted_at ? (
-                          <span className="inline-flex items-center gap-1 text-[#C5A059] text-xs">
-                            <CheckCircle size={11} /> Accepted {formatDate(inv.accepted_at)}
-                          </span>
-                        ) : (
-                          <span className="text-white/35 text-xs">Pending</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 text-right">
-                        {!inv.accepted_at && (
-                          <button
-                            onClick={() => handleResendInvite(inv.email)}
-                            disabled={resendingEmail === inv.email}
-                            className="text-white/30 hover:text-[#C5A059] text-xs transition-colors disabled:opacity-40"
-                          >
-                            {resendingEmail === inv.email ? 'Sending…' : 'Resend'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                  {users.map((user) => (
+                    <UserRow key={user.id} user={user} onEdit={() => setEditingUser(user)} />
                   ))}
                 </tbody>
               </table>
+            </div>
+          </section>
+        )}
+
+        {tab === 'invites' && (
+          <div className="space-y-8">
+            {/* Trial invite */}
+            <section>
+              <h2 className="text-white/60 text-xs uppercase tracking-widest mb-3">Send 7-day trial invite</h2>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+                <div className="flex gap-3">
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendInvite()}
+                    placeholder="email@example.com"
+                    className={`flex-1 ${inputCls}`}
+                  />
+                  <button
+                    onClick={handleSendInvite}
+                    disabled={inviteStatus === 'sending' || !inviteEmail.trim()}
+                    className="bg-[#C5A059] hover:bg-[#d4af6a] disabled:opacity-40 text-[#1A2C41] font-semibold text-sm px-5 py-2 rounded-lg transition-colors"
+                  >
+                    {inviteStatus === 'sending' ? 'Sending…' : inviteStatus === 'sent' ? 'Sent ✓' : 'Send invite'}
+                  </button>
+                </div>
+                {inviteStatus === 'error' && <p className="text-red-400 text-xs">{inviteError}</p>}
+              </div>
+            </section>
+
+            {/* Paid invite */}
+            <section>
+              <h2 className="text-white/60 text-xs uppercase tracking-widest mb-3">Send paid invite</h2>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <input
+                    type="email"
+                    value={paidEmail}
+                    onChange={(e) => setPaidEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className={inputCls}
+                  />
+                  <select
+                    value={paidPlanType}
+                    onChange={(e) => {
+                      const t = e.target.value as 'paid_monthly' | 'paid_6month'
+                      setPaidPlanType(t)
+                      const d = new Date()
+                      if (t === 'paid_6month') d.setMonth(d.getMonth() + 6)
+                      else d.setMonth(d.getMonth() + 1)
+                      setPaidEndAt(d.toISOString().slice(0, 10))
+                    }}
+                    className={`${inputCls} cursor-pointer appearance-none`}
+                  >
+                    <option value="paid_monthly" className="bg-[#1A2C41]">Monthly Plan</option>
+                    <option value="paid_6month" className="bg-[#1A2C41]">6-Month Plan</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={paidEndAt}
+                    onChange={(e) => setPaidEndAt(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSendPaidInvite}
+                    disabled={paidStatus === 'sending' || !paidEmail.trim()}
+                    className="bg-[#C5A059] hover:bg-[#d4af6a] disabled:opacity-40 text-[#1A2C41] font-semibold text-sm px-5 py-2 rounded-lg transition-colors"
+                  >
+                    {paidStatus === 'sending' ? 'Sending…' : paidStatus === 'sent' ? 'Sent ✓' : 'Send paid invite'}
+                  </button>
+                  <span className="text-white/25 text-xs">Access until {paidEndAt || '—'}</span>
+                </div>
+                {paidStatus === 'error' && <p className="text-red-400 text-xs">{paidError}</p>}
+              </div>
+            </section>
+
+            {/* All invites log */}
+            {invites.length > 0 && (
+              <section>
+                <h2 className="text-white/60 text-xs uppercase tracking-widest mb-3">Invite log</h2>
+                <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        {['Email', 'Plan', 'Invited', 'Status', ''].map((h) => (
+                          <th key={h} className="text-left px-4 py-3 text-white/30 text-xs font-medium uppercase tracking-wider">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invites.map((inv) => (
+                        <tr key={inv.id} className="border-b border-white/5 last:border-0">
+                          <td className="px-4 py-2.5 text-white/70">{inv.email}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-xs font-medium ${inv.plan_type === 'trial' ? 'text-yellow-400' : 'text-green-400'}`}>
+                              {PLAN_LABELS[inv.plan_type] ?? inv.plan_type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/40 text-xs">{formatDate(inv.invited_at)}</td>
+                          <td className="px-4 py-2.5">
+                            {inv.accepted_at ? (
+                              <span className="inline-flex items-center gap-1 text-[#C5A059] text-xs">
+                                <CheckCircle size={11} /> Accepted {formatDate(inv.accepted_at)}
+                              </span>
+                            ) : (
+                              <span className="text-white/35 text-xs">Pending</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            {!inv.accepted_at && (
+                              <button
+                                onClick={() => handleResendInvite(inv.email)}
+                                disabled={resendingEmail === inv.email}
+                                className="text-white/30 hover:text-[#C5A059] text-xs transition-colors disabled:opacity-40"
+                              >
+                                {resendingEmail === inv.email ? 'Sending…' : 'Resend'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             )}
           </div>
-        </section>
+        )}
       </div>
 
       {/* Plan edit modal */}

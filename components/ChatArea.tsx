@@ -203,7 +203,7 @@ export default function ChatArea({
       {/* Input */}
       <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100 bg-white">
         <div className="max-w-3xl mx-auto flex items-end gap-3">
-          <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-[#C5A059]/60 transition-colors">
+          <div data-tour="chat-input" className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-[#C5A059]/60 transition-colors">
             <textarea
               ref={inputRef}
               value={input}

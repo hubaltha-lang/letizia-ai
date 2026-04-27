@@ -23,6 +23,7 @@ export default async function DashboardPage() {
   return (
     <Dashboard
       userId={user!.id}
+      userEmail={user!.email ?? ''}
       displayName={profile?.display_name ?? user!.email ?? 'User'}
       accessBlocked={!access.allowed}
       initialProfile={{

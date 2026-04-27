@@ -9,16 +9,18 @@ export default async function AuthPage({ searchParams }: Props) {
   const { invite: token } = await searchParams
 
   let inviteEmail: string | null = null
+  let invitePlanType: string | null = null
 
   if (token) {
     const admin = createAdminClient()
     const { data } = await admin
       .from('invites')
-      .select('email, accepted_at')
+      .select('email, accepted_at, plan_type')
       .eq('token', token)
       .is('accepted_at', null)
       .single()
     inviteEmail = data?.email ?? null
+    invitePlanType = data?.plan_type ?? null
   }
 
   return (
@@ -38,7 +40,7 @@ export default async function AuthPage({ searchParams }: Props) {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-xl shadow-[#1A2C41]/5">
-          <AuthForm inviteEmail={inviteEmail} inviteToken={token ?? null} />
+          <AuthForm inviteEmail={inviteEmail} inviteToken={token ?? null} invitePlanType={invitePlanType} />
         </div>
 
         <p className="text-center text-[#1A2C41]/30 text-xs mt-6">

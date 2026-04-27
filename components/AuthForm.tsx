@@ -6,9 +6,10 @@ import { signIn, claimInvite } from '@/app/actions/auth'
 interface Props {
   inviteEmail?: string | null
   inviteToken?: string | null
+  invitePlanType?: string | null
 }
 
-export default function AuthForm({ inviteEmail, inviteToken }: Props) {
+export default function AuthForm({ inviteEmail, inviteToken, invitePlanType }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -25,12 +26,24 @@ export default function AuthForm({ inviteEmail, inviteToken }: Props) {
   const inputCls =
     'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-[#1A2C41] placeholder:text-[#1A2C41]/30 focus:outline-none focus:border-[#C5A059]/60 transition-colors'
 
+  const isPaid = invitePlanType === 'paid_monthly' || invitePlanType === 'paid_6month'
+  const planLabel = invitePlanType === 'paid_6month' ? '6-Month Plan' : invitePlanType === 'paid_monthly' ? 'Monthly Plan' : null
+
   if (isInvite) {
     return (
       <form action={handleSubmit} className="space-y-4">
         <div className="text-center mb-6">
           <p className="text-[#1A2C41] font-semibold text-base">You've been invited!</p>
-          <p className="text-[#1A2C41]/45 text-sm mt-1">Set a password to activate your 7-day free trial.</p>
+          {isPaid && planLabel ? (
+            <>
+              <span className="inline-block mt-2 mb-1 px-3 py-1 rounded-full bg-[#C5A059]/10 border border-[#C5A059]/30 text-[#C5A059] text-xs font-medium tracking-wide">
+                {planLabel}
+              </span>
+              <p className="text-[#1A2C41]/45 text-sm mt-1">Set a password to activate your account.</p>
+            </>
+          ) : (
+            <p className="text-[#1A2C41]/45 text-sm mt-1">Set a password to activate your 7-day free trial.</p>
+          )}
         </div>
 
         <input type="hidden" name="token" value={inviteToken} />
@@ -68,7 +81,7 @@ export default function AuthForm({ inviteEmail, inviteToken }: Props) {
           disabled={isPending}
           className="w-full bg-[#C5A059] hover:bg-[#d4af6a] text-[#1A2C41] font-semibold py-3 rounded-xl transition-all duration-200 text-sm tracking-wide disabled:opacity-50 disabled:cursor-not-allowed mt-2 cursor-pointer"
         >
-          {isPending ? 'Creating your account…' : 'Activate my free trial →'}
+          {isPending ? 'Creating your account…' : isPaid ? 'Activate my account →' : 'Activate my free trial →'}
         </button>
       </form>
     )

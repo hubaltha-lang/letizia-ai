@@ -18,7 +18,7 @@ export async function claimInvite(formData: FormData) {
   // Verify the invite is still valid
   const { data: invite } = await admin
     .from('invites')
-    .select('id, email')
+    .select('id, email, plan_type, plan_start_at, plan_end_at')
     .eq('token', token)
     .eq('email', email.toLowerCase().trim())
     .is('accepted_at', null)
@@ -43,22 +43,32 @@ export async function claimInvite(formData: FormData) {
   }
 
   const userId = created.user.id
-
-  // Set up trial and link invite
   const now = new Date()
-  const trialEnd = new Date(now)
-  trialEnd.setDate(trialEnd.getDate() + 7)
+
+  // Build profile update based on plan type
+  const isPaid = invite.plan_type === 'paid_monthly' || invite.plan_type === 'paid_6month'
+  const profileUpdate = isPaid
+    ? {
+        plan_type: invite.plan_type,
+        plan_start_at: now.toISOString(),
+        plan_end_at: invite.plan_end_at,
+      }
+    : (() => {
+        const trialEnd = new Date(now)
+        trialEnd.setDate(trialEnd.getDate() + 7)
+        return {
+          plan_type: 'trial',
+          trial_start_at: now.toISOString(),
+          trial_end_at: trialEnd.toISOString(),
+        }
+      })()
 
   await Promise.all([
     admin.from('invites').update({
       accepted_at: now.toISOString(),
       user_id: userId,
     }).eq('id', invite.id),
-    admin.from('profiles').update({
-      plan_type: 'trial',
-      trial_start_at: now.toISOString(),
-      trial_end_at: trialEnd.toISOString(),
-    }).eq('id', userId),
+    admin.from('profiles').update(profileUpdate).eq('id', userId),
   ])
 
   // Sign them in immediately

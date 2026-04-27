@@ -1,6 +1,6 @@
 'use client'
 
-import { X, Plus, Settings, Hotel } from 'lucide-react'
+import { X, Plus, Settings, Hotel, HelpCircle } from 'lucide-react'
 import { MODULES, type ModuleId } from '@/lib/modules'
 import type { ChatSession } from '@/lib/types'
 import type { ActiveView } from '@/lib/store'
@@ -16,6 +16,7 @@ interface Props {
   activeView: ActiveView
   onClose: () => void
   onOpenSettings: () => void
+  onOpenHelp: () => void
 }
 
 function groupSessionsByDate(sessions: ChatSession[]): { label: string; items: ChatSession[] }[] {
@@ -47,6 +48,7 @@ export default function Sidebar({
   activeView,
   onClose,
   onOpenSettings,
+  onOpenHelp,
 }: Props) {
   const grouped = groupSessionsByDate(sessions)
 
@@ -77,6 +79,7 @@ export default function Sidebar({
           </div>
           <p className="text-xs text-white/70 leading-tight flex-1 min-w-0 truncate">{displayName}</p>
           <button
+            data-tour="settings-button"
             onClick={onOpenSettings}
             title="Settings"
             className="text-white/30 hover:text-white/80 transition-colors cursor-pointer"
@@ -163,7 +166,7 @@ export default function Sidebar({
       <div className="mx-5 border-t border-white/10 flex-shrink-0" />
 
       {/* Chat history */}
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div data-tour="chat-history" className="flex-1 overflow-y-auto px-5 py-4">
         {grouped.length === 0 ? (
           <p className="text-white/20 text-xs text-center mt-4">No conversations yet</p>
         ) : (
@@ -194,6 +197,17 @@ export default function Sidebar({
             </div>
           ))
         )}
+      </div>
+
+      {/* Help footer */}
+      <div className="flex-shrink-0 px-5 py-3 border-t border-white/10">
+        <button
+          onClick={onOpenHelp}
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-white/35 hover:bg-white/10 hover:text-white/70 transition-all text-sm cursor-pointer"
+        >
+          <HelpCircle size={15} />
+          <span>Help & Support</span>
+        </button>
       </div>
     </aside>
   )

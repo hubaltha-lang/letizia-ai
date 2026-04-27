@@ -10,6 +10,8 @@ import HotelScraper from './HotelScraper'
 import OnboardingModal from './OnboardingModal'
 import SettingsModal from './SettingsModal'
 import TrialExpiredModal from './TrialExpiredModal'
+import GuidedTour from './GuidedTour'
+import HelpModal from './HelpModal'
 import type { ChatSession, Message } from '@/lib/types'
 import type { ModuleId } from '@/lib/modules'
 import type { UserProfile } from '@/lib/profile'
@@ -17,6 +19,7 @@ import type { ActiveView } from '@/lib/store'
 
 interface Props {
   userId: string
+  userEmail: string
   displayName: string
   initialProfile: UserProfile
   accessBlocked: boolean
@@ -35,7 +38,7 @@ function isProfileIncomplete(profile: UserProfile): boolean {
   )
 }
 
-export default function Dashboard({ userId, displayName, initialProfile, accessBlocked }: Props) {
+export default function Dashboard({ userId, userEmail, displayName, initialProfile, accessBlocked }: Props) {
   const {
     activeModuleId,
     activeChatId,
@@ -57,18 +60,29 @@ export default function Dashboard({ userId, displayName, initialProfile, accessB
   // Onboarding modal: auto-show for first-time users (never dismissed before).
   // The "Finish onboarding" banner reopens it for returning users with gaps.
   const [showOnboarding, setShowOnboarding] = useState(false)
+  // tourStep: null = not showing, 0|1|2 = active step
+  const [tourStep, setTourStep] = useState<number | null>(null)
+
   useEffect(() => {
-    let dismissed = false
+    let onboardingDismissed = false
+    let tourDone = false
     try {
-      dismissed = localStorage.getItem(`onboarding_done_${userId}`) === '1'
+      onboardingDismissed = localStorage.getItem(`onboarding_done_${userId}`) === '1'
+      tourDone = localStorage.getItem(`tour_done_${userId}`) === '1'
     } catch {}
-    if (!dismissed && isProfileIncomplete(initialProfile)) {
+
+    const needsOnboarding = !onboardingDismissed && isProfileIncomplete(initialProfile)
+    if (needsOnboarding) {
       setShowOnboarding(true)
+      // tour will be triggered after onboarding completes
+    } else if (!tourDone && !accessBlocked) {
+      setTourStep(0)
     }
-  }, [userId, initialProfile])
+  }, [userId, initialProfile, accessBlocked])
 
   const profileIncomplete = isProfileIncomplete(profile)
   const [showSettings, setShowSettings] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
 
   const supabase = createClient()
 
@@ -138,6 +152,23 @@ export default function Dashboard({ userId, displayName, initialProfile, accessB
   function handleOnboardingComplete(completed: UserProfile) {
     setProfile(completed)
     setShowOnboarding(false)
+    if (!accessBlocked) {
+      let tourDone = false
+      try { tourDone = localStorage.getItem(`tour_done_${userId}`) === '1' } catch {}
+      if (!tourDone) setTourStep(0)
+    }
+  }
+
+  function handleTourNext() {
+    const next = (tourStep ?? 0) + 1
+    // Steps 1 and 2 target sidebar elements — ensure sidebar is visible
+    if (next === 1 || next === 2) setSidebarOpen(true)
+    setTourStep(next)
+  }
+
+  function handleTourDone() {
+    try { localStorage.setItem(`tour_done_${userId}`, '1') } catch {}
+    setTourStep(null)
   }
 
   return (
@@ -158,6 +189,20 @@ export default function Dashboard({ userId, displayName, initialProfile, accessB
           profile={profile}
           onProfileChange={setProfile}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+      {tourStep !== null && !accessBlocked && (
+        <GuidedTour
+          step={tourStep}
+          onNext={handleTourNext}
+          onDone={handleTourDone}
+        />
+      )}
+      {showHelp && (
+        <HelpModal
+          userEmail={userEmail}
+          displayName={displayName}
+          onClose={() => setShowHelp(false)}
         />
       )}
       {/* Mobile overlay */}
@@ -185,6 +230,7 @@ export default function Dashboard({ userId, displayName, initialProfile, accessB
           activeView={activeView}
           onClose={() => setSidebarOpen(false)}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenHelp={() => setShowHelp(true)}
         />
       </div>
 
