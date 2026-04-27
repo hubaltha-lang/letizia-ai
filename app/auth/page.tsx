@@ -1,14 +1,32 @@
 import AuthForm from '@/components/AuthForm'
+import { createAdminClient } from '@/lib/admin'
 
-export default function AuthPage() {
+interface Props {
+  searchParams: Promise<{ invite?: string }>
+}
+
+export default async function AuthPage({ searchParams }: Props) {
+  const { invite: token } = await searchParams
+
+  let inviteEmail: string | null = null
+
+  if (token) {
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('invites')
+      .select('email, accepted_at')
+      .eq('token', token)
+      .is('accepted_at', null)
+      .single()
+    inviteEmail = data?.email ?? null
+  }
+
   return (
     <main className="min-h-screen bg-white flex items-center justify-center p-4">
-      {/* Subtle background gradient */}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(26,44,65,0.04)_0%,_transparent_60%)] pointer-events-none" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(197,160,89,0.05)_0%,_transparent_60%)] pointer-events-none" />
 
       <div className="w-full max-w-md relative">
-        {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-[#C5A059] to-[#8B6914] mb-4 shadow-xl shadow-[#C5A059]/25">
             <span className="text-white text-2xl font-bold" style={{ fontFamily: 'var(--font-playfair)' }}>L</span>
@@ -19,9 +37,8 @@ export default function AuthPage() {
           <p className="text-[#1A2C41]/40 text-sm mt-1 tracking-wider uppercase">Wellness Intelligence</p>
         </div>
 
-        {/* Auth card */}
         <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-xl shadow-[#1A2C41]/5">
-          <AuthForm />
+          <AuthForm inviteEmail={inviteEmail} inviteToken={token ?? null} />
         </div>
 
         <p className="text-center text-[#1A2C41]/30 text-xs mt-6">
