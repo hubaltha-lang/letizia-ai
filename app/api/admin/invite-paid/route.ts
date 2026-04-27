@@ -15,6 +15,14 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+
+  // Block if already a registered user
+  const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 10000 })
+  const normalizedEmail = email.toLowerCase().trim()
+  if (users.some((u) => u.email?.toLowerCase() === normalizedEmail)) {
+    return NextResponse.json({ error: 'This email is already registered as a user.' }, { status: 409 })
+  }
+
   const planStartAt = new Date().toISOString()
 
   const { data: invite, error: inviteError } = await admin
