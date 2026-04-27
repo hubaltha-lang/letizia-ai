@@ -6,6 +6,7 @@ import type { AdminUser, Invite, PlanType } from '@/lib/admin'
 import { PLAN_LABELS } from '@/lib/admin'
 import AdminChats from './AdminChats'
 import AdminUsage from './AdminUsage'
+import AdminBulkInvite from './AdminBulkInvite'
 
 interface Props {
   initialUsers: AdminUser[]
@@ -267,6 +268,9 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
                 {paidStatus === 'error' && <p className="text-red-400 text-xs">{paidError}</p>}
               </div>
             </section>
+
+            {/* Bulk CSV invite */}
+            <AdminBulkInvite />
 
             {/* All invites log */}
             {invites.length > 0 && (
