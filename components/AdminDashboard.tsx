@@ -17,10 +17,21 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [inviteError, setInviteError] = useState('')
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null)
 
   const trialUsers = users.filter((u) => u.plan_type === 'trial').length
   const paidUsers = users.filter((u) => u.plan_type === 'paid_monthly' || u.plan_type === 'paid_6month').length
   const pendingInvites = invites.filter((i) => !i.accepted_at).length
+
+  async function handleResendInvite(email: string) {
+    setResendingEmail(email)
+    await fetch('/api/admin/invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    setResendingEmail(null)
+  }
 
   async function handleSendInvite() {
     if (!inviteEmail.trim()) return
@@ -146,7 +157,7 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
-                    {['Email', 'Invited', 'Status'].map((h) => (
+                    {['Email', 'Invited', 'Status', ''].map((h) => (
                       <th key={h} className="text-left pb-2 text-white/30 text-xs font-medium uppercase tracking-wider">
                         {h}
                       </th>
@@ -165,6 +176,17 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
                           </span>
                         ) : (
                           <span className="text-white/35 text-xs">Pending</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-right">
+                        {!inv.accepted_at && (
+                          <button
+                            onClick={() => handleResendInvite(inv.email)}
+                            disabled={resendingEmail === inv.email}
+                            className="text-white/30 hover:text-[#C5A059] text-xs transition-colors disabled:opacity-40"
+                          >
+                            {resendingEmail === inv.email ? 'Sending…' : 'Resend'}
+                          </button>
                         )}
                       </td>
                     </tr>
