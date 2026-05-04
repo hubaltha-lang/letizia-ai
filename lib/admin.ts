@@ -45,4 +45,5 @@ export interface Invite {
   plan_type: PlanType
   plan_start_at: string | null
   plan_end_at: string | null
+  token: string
 }

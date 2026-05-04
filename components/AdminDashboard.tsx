@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Users, Mail, CheckCircle, Clock, X } from 'lucide-react'
+import { Users, Mail, CheckCircle, Clock, X, Copy, Check } from 'lucide-react'
 import type { AdminUser, Invite, PlanType } from '@/lib/admin'
 import { PLAN_LABELS } from '@/lib/admin'
 import AdminChats from './AdminChats'
@@ -24,6 +24,23 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [inviteError, setInviteError] = useState('')
   const [resendingEmail, setResendingEmail] = useState<string | null>(null)
+  const [copiedToken, setCopiedToken] = useState<string | null>(null)
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? (typeof window !== 'undefined' ? window.location.origin : '')
+
+  function inviteUrlFor(token: string): string {
+    return `${appUrl}/auth?invite=${token}`
+  }
+
+  async function handleCopyInviteUrl(token: string) {
+    try {
+      await navigator.clipboard.writeText(inviteUrlFor(token))
+      setCopiedToken(token)
+      setTimeout(() => setCopiedToken((t) => (t === token ? null : t)), 1500)
+    } catch {
+      // ignore clipboard failures
+    }
+  }
 
   // Paid invite state
   const [paidEmail, setPaidEmail] = useState('')
@@ -280,7 +297,7 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/10">
-                        {['Email', 'Plan', 'Invited', 'Status', ''].map((h) => (
+                        {['Email', 'Plan', 'Invited', 'Link', 'Status', ''].map((h) => (
                           <th key={h} className="text-left px-4 py-3 text-white/30 text-xs font-medium uppercase tracking-wider">
                             {h}
                           </th>
@@ -297,6 +314,28 @@ export default function AdminDashboard({ initialUsers, initialInvites }: Props) 
                             </span>
                           </td>
                           <td className="px-4 py-2.5 text-white/40 text-xs">{formatDate(inv.invited_at)}</td>
+                          <td className="px-4 py-2.5">
+                            {inv.token ? (
+                              <div className="flex items-center gap-2 max-w-[280px]">
+                                <input
+                                  type="text"
+                                  readOnly
+                                  value={inviteUrlFor(inv.token)}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded px-2 py-1 text-white/55 text-[11px] font-mono truncate focus:outline-none focus:border-[#C5A059]/50"
+                                />
+                                <button
+                                  onClick={() => handleCopyInviteUrl(inv.token)}
+                                  title="Copy invite URL"
+                                  className="text-white/40 hover:text-[#C5A059] transition-colors shrink-0"
+                                >
+                                  {copiedToken === inv.token ? <Check size={12} /> : <Copy size={12} />}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-white/25 text-xs">—</span>
+                            )}
+                          </td>
                           <td className="px-4 py-2.5">
                             {inv.accepted_at ? (
                               <span className="inline-flex items-center gap-1 text-[#C5A059] text-xs">
